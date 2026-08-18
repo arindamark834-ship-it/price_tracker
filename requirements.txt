@@ -7,3 +7,5 @@ playwright
 apscheduler
 plotly
 sqlalchemy
+streamlit-authenticator
+bcrypt

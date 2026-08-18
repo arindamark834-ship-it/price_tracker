@@ -1,49 +1,45 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
-from datetime import datetime
-
-DATABASE_URL = "sqlite:///./price_tracker.db"
-
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-Base = declarative_base()
-
-class Product(Base):
-    __tablename__ = "products"
-
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, nullable=False)
-    url = Column(String, unique=True, nullable=False)
-    target_price_selector = Column(String, nullable=False)
-    price_logs = relationship("PriceLog", back_populates="product", cascade="all, delete-orphan")
-
-class PriceLog(Base):
-    __tablename__ = "price_logs"
-
-    id = Column(Integer, primary_key=True, index=True)
-    product_id = Column(Integer, ForeignKey("products.id"))
-    price = Column(Float, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-
-    product = relationship("Product", back_populates="price_logs")
+import sqlite3
 
 def init_db():
-    Base.metadata.create_all(bind=engine)
+    conn = sqlite3.connect('price_tracker.db')
+    cursor = conn.cursor()
+    # Create products table with a username column
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS products (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT NOT NULL,
+            title TEXT NOT NULL,
+            url TEXT NOT NULL,
+            target_price_selector TEXT NOT NULL
+        )
+    ''')
+    # Create price history table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS price_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            product_id INTEGER NOT NULL,
+            price TEXT NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (product_id) REFERENCES products (id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
 
-def get_all_products():
-    db = SessionLocal()
-    try:
-        return db.query(Product).all()
-    finally:
-        db.close()
+def add_product(username, title, url, selector):
+    conn = sqlite3.connect('price_tracker.db')
+    cursor = conn.cursor()
+    cursor.execute(
+        'INSERT INTO products (username, title, url, target_price_selector) VALUES (?, ?, ?, ?)',
+        (username, title, url, selector)
+    )
+    conn.commit()
+    conn.close()
 
-def add_product(title, url, target_price_selector):
-    db = SessionLocal()
-    try:
-        product = Product(title=title, url=url, target_price_selector=target_price_selector)
-        db.add(product)
-        db.commit()
-        db.refresh(product)
-        return product
-    finally:
-        db.close()
+def get_user_products(username):
+    conn = sqlite3.connect('price_tracker.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, title, url, target_price_selector FROM products WHERE username = ?', (username,))
+    rows = cursor.fetchall()
+    conn.close()
+    return rows

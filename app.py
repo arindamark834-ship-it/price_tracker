@@ -1,45 +1,70 @@
 import streamlit as st
-from database import init_db, get_all_products, add_product
+import streamlit_authenticator as stauth
+from database import init_db, add_product, get_user_products
 
-# Initialize database schema on startup
-try:
-    init_db()
-except Exception as e:
-    st.error(f"Database initialization failed: {e}")
+# Initialize Database
+init_db()
 
-st.title("🏷️ Web Price Tracker Dashboard")
-st.subheader("Product Price History")
+# User Accounts Setup
+names = ['User One', 'User Two']
+usernames = ['user1', 'user2']
 
-# --- Sidebar Inputs for Adding Products ---
-st.sidebar.header("Add New Product")
+# Pre-hashed passwords for test accounts ('password123' for user1, 'secret123' for user2)
+passwords = [
+    '$2b$12$eImiTXuWVxfM37uY4JANjO5E.5R0zZk2yC9qM4oY2f0u3Y4aZ5y6C', 
+    '$2b$12$eImiTXuWVxfM37uY4JANjO5E.5R0zZk2yC9qM4oY2f0u3Y4aZ5y6C'
+]
 
-with st.sidebar.form("add_product_form"):
-    title = st.text_input("Product Name")
-    url = st.text_input("Product URL")
-    selector = st.text_input("Target Price Selector (CSS)")
-    submit_button = st.form_submit_button("Add Product")
+credentials = {
+    'usernames': {
+        usernames[0]: {'name': names[0], 'password': passwords[0]},
+        usernames[1]: {'name': names[1], 'password': passwords[1]}
+    }
+}
 
-    if submit_button:
-        if title and url and selector:
-            try:
-                add_product(title, url, selector)
-                st.sidebar.success(f"Successfully added {title}!")
-                st.rerun()
-            except Exception as e:
-                st.sidebar.error(f"Error adding product: {e}")
+authenticator = stauth.Authenticate(
+    credentials,
+    'price_tracker_cookie',
+    'auth_key_12345',
+    cookie_expiry_days=30
+)
+
+# Render Login Widget
+name, authentication_status, username = authenticator.login('main')
+
+if authentication_status == False:
+    st.error('Username/password is incorrect')
+elif authentication_status == None:
+    st.warning('Please enter your username and password')
+elif authentication_status:
+    authenticator.logout('Logout', 'sidebar')
+    st.sidebar.title(f"Welcome {name}!")
+
+    st.title("🏷️ Web Price Tracker Dashboard")
+
+    # Sidebar: Add New Product
+    st.sidebar.header("Add New Product")
+    product_name = st.sidebar.text_input("Product Name")
+    product_url = st.sidebar.text_input("Product URL")
+    selector = st.sidebar.text_input("Target Price Selector (CSS)")
+
+    if st.sidebar.button("Add Product"):
+        if product_name and product_url and selector:
+            add_product(username, product_name, product_url, selector)
+            st.sidebar.success("Product added successfully!")
+            st.rerun()
         else:
             st.sidebar.warning("Please fill in all fields.")
 
-# --- Main Display: Load and display products ---
-try:
-    products = get_all_products()
+    # Main Area: Product History for current user
+    st.subheader("Your Tracked Products")
+    products = get_user_products(username)
+
     if not products:
         st.info("No products tracked yet. Add one using the sidebar!")
     else:
-        for product in products:
-            st.write(f"**{product.title}**")
-            st.write(f"Link: {product.url}")
-            st.write(f"Selector: `{product.target_price_selector}`")
+        for p in products:
+            st.write(f"**{p[1]}**")
+            st.write(f"Link: {p[2]}")
+            st.write(f"Selector: `{p[3]}`")
             st.markdown("---")
-except Exception as e:
-    st.error(f"Error fetching products: {e}")
