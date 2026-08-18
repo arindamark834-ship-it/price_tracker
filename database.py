@@ -1,6 +1,5 @@
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime
 
 DATABASE_URL = "sqlite:///./price_tracker.db"
@@ -16,7 +15,7 @@ class Product(Base):
     title = Column(String, nullable=False)
     url = Column(String, unique=True, nullable=False)
     target_price_selector = Column(String, nullable=False)
-    price_logs = relationship("PriceLog", back_populates="product")
+    price_logs = relationship("PriceLog", back_populates="product", cascade="all, delete-orphan")
 
 class PriceLog(Base):
     __tablename__ = "price_logs"
@@ -30,3 +29,21 @@ class PriceLog(Base):
 
 def init_db():
     Base.metadata.create_all(bind=engine)
+
+def get_all_products():
+    db = SessionLocal()
+    try:
+        return db.query(Product).all()
+    finally:
+        db.close()
+
+def add_product(title, url, target_price_selector):
+    db = SessionLocal()
+    try:
+        product = Product(title=title, url=url, target_price_selector=target_price_selector)
+        db.add(product)
+        db.commit()
+        db.refresh(product)
+        return product
+    finally:
+        db.close()
