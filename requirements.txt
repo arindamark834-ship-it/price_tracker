@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+apscheduler
+beautifulsoup4
+httpx
+streamlit
+requests
+pandas
+plotly
