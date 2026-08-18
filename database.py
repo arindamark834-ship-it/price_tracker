@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, ForeignKey
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 
 DATABASE_URL = "sqlite:///./price_tracker.db"
@@ -27,4 +28,5 @@ class PriceLog(Base):
 
     product = relationship("Product", back_populates="price_logs")
 
-Base.metadata.create_all(bind=engine)
+def init_db():
+    Base.metadata.create_all(bind=engine)
